@@ -188,6 +188,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     // MARK: Menu
 
+    /// Screen rect of the menu bar icon, to anchor the handoff panel.
+    var anchorFrame: NSRect? {
+        statusItem.button?.window?.frame
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         rebuildMenu()
     }

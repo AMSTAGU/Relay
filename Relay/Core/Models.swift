@@ -66,6 +66,8 @@ struct AppSettings: Codable, Sendable {
     var releaseOnSleep = false
     /// Locked Macs disconnect the speaker as soon as macOS reconnects it on its own.
     var locked = false
+    /// Offer to bring the speaker here when media starts playing on this Mac.
+    var suggestHandoff = true
     var group: GroupSnapshot
 
     var identity: DeviceIdentity {
@@ -76,5 +78,21 @@ struct AppSettings: Codable, Sendable {
         let id = UUID().uuidString
         let identity = DeviceIdentity(id: id, name: SystemInfo.computerName, symbol: DeviceSymbols.suggested)
         return AppSettings(deviceID: id, name: identity.name, symbol: identity.symbol, group: .solo(identity))
+    }
+}
+
+extension AppSettings {
+    /// Tolerant decoding: settings saved by an older version lack the newer
+    /// keys, and must not be thrown away (that would drop the group).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        deviceID = try c.decode(String.self, forKey: .deviceID)
+        name = try c.decode(String.self, forKey: .name)
+        symbol = try c.decode(String.self, forKey: .symbol)
+        group = try c.decode(GroupSnapshot.self, forKey: .group)
+        onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
+        releaseOnSleep = try c.decodeIfPresent(Bool.self, forKey: .releaseOnSleep) ?? false
+        locked = try c.decodeIfPresent(Bool.self, forKey: .locked) ?? false
+        suggestHandoff = try c.decodeIfPresent(Bool.self, forKey: .suggestHandoff) ?? true
     }
 }

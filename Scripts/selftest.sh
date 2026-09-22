@@ -5,6 +5,8 @@
 #   - with --group: two isolated instances over real Bonjour (pairing,
 #     heartbeat, rename/speaker sync, remote connect, lock, removal).
 #     Uses a fake speaker address; no real Bluetooth device is touched.
+#   - with --playback: PlaybackMonitor against a real, nearly silent sound
+#     (a sustained one is reported, a short one is not).
 #   - with --idle [seconds]: two paired instances left idle; prints CPU time
 #     and wakeups, to keep an eye on background cost.
 set -euo pipefail
@@ -15,6 +17,9 @@ cat > build/selftest-main.swift <<'SWIFT'
 import Foundation
 @main enum Harness {
     static func main() async {
+        if CommandLine.arguments.contains("--playback") {
+            exit(await PlaybackTest.run() ? 0 : 1)
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--idle") {
             let seconds = CommandLine.arguments.dropFirst(index + 1).first.flatMap(Int.init) ?? 60
             await GroupTest.idle(seconds: seconds)
@@ -29,5 +34,5 @@ import Foundation
 SWIFT
 swiftc -swift-version 6 -default-isolation MainActor -D DEBUG -parse-as-library -o "$BIN" \
   $(find Relay/Core Relay/Network Relay/Speaker Relay/Coordinator -name '*.swift') \
-  Relay/App/SelfTest.swift Relay/App/GroupTest.swift build/selftest-main.swift
+  Relay/App/SelfTest.swift Relay/App/GroupTest.swift Relay/App/PlaybackTest.swift build/selftest-main.swift
 "$BIN" "$@"

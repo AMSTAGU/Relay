@@ -51,7 +51,12 @@ enum GroupTest {
 
         await b.coordinator.switchTo(.mac(a.store.deviceID))
         let error = b.coordinator.lastError ?? ""
-        check(error.contains("Alpha 2"), "remote connect order runs on Alpha and its failure is reported: \(error)")
+        // "« Alpha 2 » : …" is the shape of an error relayed by Alpha itself, so
+        // this cannot pass with a local "offline" error.
+        check(
+            error.hasPrefix("« Alpha 2 » :"),
+            "remote connect order runs on Alpha and its own failure is reported: \(error)"
+        )
         check(b.store.isLocked, "Bravo locked itself while handing over")
 
         await b.coordinator.switchTo(.none)

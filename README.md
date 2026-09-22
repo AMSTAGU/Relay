@@ -33,6 +33,8 @@ No Terminal, no Homebrew, no SSH, no server. The Macs talk to each other directl
 - The icon shows who has the speaker (the icon of that Mac, an iPhone, or a muted speaker). Three dots hop while a switch is running, and a warning sign appears if something went wrong. The menu then says what happened in plain words.
 - Any Mac can send the speaker to any other: from the Mac mini, you can hand it to the MacBook.
 
+- **When media starts here** — If a video or a track starts on this Mac while the speaker is on another one, a small panel offers to bring it over. One click and it moves. It never fires for alerts, notifications or short interface sounds, nor when you are listening on headphones. **Pas maintenant** (Not now) mutes it for 30 minutes, and any switch of the speaker lifts that pause.
+
 **Around it**
 
 - **Setup assistant** — Bluetooth permission, speaker choice, this Mac's name and icon, pairing with your other Macs, launch at login, and a live test.
@@ -57,6 +59,10 @@ Connecting opens the Bluetooth link (three attempts, one second apart), then mak
 ### Lock mode
 
 macOS reconnects known audio devices by itself, which is exactly what keeps a speaker stuck to the wrong Mac. So a Mac that was asked to release the speaker becomes **locked**. It listens for Bluetooth connections, and if the speaker comes back without being asked, it disconnects it immediately. The lock is lifted as soon as that Mac is chosen again.
+
+### Noticing playback
+
+CoreAudio reports when the default output device starts and stops running, and Relay subscribes to that: nothing is polled, nothing runs while nothing plays. A run has to last five seconds to count, which is what separates a video from a notification sound. The app behind the sound is then looked up in CoreAudio's per-process list (macOS 14.2+) to name it in the offer.
 
 ### Network protocol
 
@@ -115,8 +121,10 @@ Select the **Relay** scheme and press <kbd>⌘</kbd> <kbd>R</kbd>. You may need 
 ### Tests
 
 ```sh
-Scripts/selftest.sh           # message signing, replay protection, pairing (right and wrong code)
-Scripts/selftest.sh --group   # + two real instances talking over Bonjour
+Scripts/selftest.sh             # message signing, replay protection, pairing (right and wrong code)
+Scripts/selftest.sh --group     # + two real instances talking over Bonjour
+Scripts/selftest.sh --playback  # the playback detector (threshold, restart, real sound)
+Scripts/selftest.sh --idle 60   # CPU time and wakeups of two idle instances
 ```
 
 The `--group` run starts two isolated instances in one process. It covers discovery, pairing, heartbeat, name and speaker sync, a remote connect order, the lock and removing a Mac. It uses a fake speaker address, so no real device is touched.

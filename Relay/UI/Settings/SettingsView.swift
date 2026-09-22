@@ -198,6 +198,17 @@ private struct GeneralPage: View {
                         .toggleStyle(.rSwitch)
                         .labelsHidden()
                     }
+                    SettingsRow(
+                        title: "Proposer l’enceinte quand ce Mac joue du son",
+                        description: "Si une vidéo ou de la musique démarre ici alors que l’enceinte est sur un autre Mac. « Pas maintenant » met la question en pause 30 minutes."
+                    ) {
+                        Toggle("", isOn: Binding(
+                            get: { store.settings.suggestHandoff },
+                            set: { enabled in coordinator.store.update { $0.suggestHandoff = enabled } }
+                        ))
+                        .toggleStyle(.rSwitch)
+                        .labelsHidden()
+                    }
                 }
                 if permissions.loginItem == .requiresApproval {
                     Notice(tone: .warning, title: "macOS demande votre accord", message: "Autorisez Relay dans Réglages Système › Général › Ouverture.") {

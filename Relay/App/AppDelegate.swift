@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var coordinator = SwitchCoordinator(store: store, speaker: speaker, peers: peers, permissions: permissions)
     private(set) lazy var windows = WindowManager(app: self)
     private var statusItem: StatusItemController?
+    private var suggester: HandoffSuggester?
+    private var handoffPanel: HandoffPanelController?
     private var shownPairingHost: UUID?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -32,7 +34,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         #endif
-        statusItem = StatusItemController(coordinator: coordinator, windows: windows)
+        let statusItem = StatusItemController(coordinator: coordinator, windows: windows)
+        self.statusItem = statusItem
+
+        // Offer to bring the speaker here when media starts playing on this Mac.
+        let suggester = HandoffSuggester(coordinator: coordinator)
+        self.suggester = suggester
+        handoffPanel = HandoffPanelController(suggester: suggester) { [weak statusItem] in statusItem?.anchorFrame }
+        suggester.start()
 
         if store.settings.onboardingCompleted {
             coordinator.startNetworking()
@@ -101,14 +110,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         main.addItem(windowItem)
 
         NSApp.mainMenu = main
-    }
-}
-
-/// Runs `body` now and again every time something it read changes.
-func observeChanges(_ body: @escaping @MainActor () -> Void) {
-    withObservationTracking {
-        body()
-    } onChange: {
-        Task { @MainActor in observeChanges(body) }
     }
 }

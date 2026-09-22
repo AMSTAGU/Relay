@@ -19,6 +19,17 @@ enum Snapshots {
             pages.append(("settings-\(page.rawValue)", NSSize(width: 820, height: 580), AnyView(SettingsPageSnapshot(page: page))))
         }
         pages.append(("help", NSSize(width: 700, height: 660), AnyView(HelpView())))
+        let offer = HandoffSuggester.Suggestion(
+            appName: "Safari",
+            appIcon: NSWorkspace.shared.icon(forFile: "/Applications/Safari.app"),
+            speakerName: "Eris 4.5BT",
+            holderName: "MacBook Pro"
+        )
+        pages.append(("handoff", NSSize(width: 372, height: 150), AnyView(
+            HandoffCard(suggestion: offer, accept: {}, decline: {})
+                .frame(width: 372, height: 150)
+                .background(Color(.backgroundFull))
+        )))
 
         for (name, size, view) in pages {
             for dark in [false, true] {

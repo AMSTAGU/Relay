@@ -422,6 +422,7 @@ private struct TestStep: View {
                 SettingsCard {
                     SettingsRow(title: "Clic sur l’icône", description: "Choisissez le Mac qui doit avoir l’enceinte, ou « Aucun Mac » pour l’iPhone.", icon: "cursorarrow.click")
                     SettingsRow(title: "Clic droit sur l’icône", description: "Passe l’enceinte à l’appareil suivant : chaque Mac à tour de rôle, puis l’iPhone, et on recommence.", icon: "cursorarrow.click.2")
+                    SettingsRow(title: "Quand une vidéo démarre ici", description: "Si l’enceinte est sur un autre Mac, Relay propose de la faire venir. Un clic suffit.", icon: "play.circle")
                 }
             }
         }

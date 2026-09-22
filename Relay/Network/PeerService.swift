@@ -54,6 +54,10 @@ final class PeerService {
     @ObservationIgnored private let replay = ReplayGuard()
     @ObservationIgnored private var heartbeat: Task<Void, Never>?
     @ObservationIgnored private var advertised: [String: String] = [:]
+    /// Last known address of each Mac. Bonjour drops and re-adds a service
+    /// whenever its record changes, but the Mac is still there: the TCP link
+    /// decides whether it is reachable, not the browse results.
+    @ObservationIgnored private var endpoints: [String: NWEndpoint] = [:]
     /// No heartbeat while the screens are off: nobody is looking at the menu,
     /// and incoming commands are still served by the listener.
     @ObservationIgnored private var screensAsleep = false
@@ -91,6 +95,7 @@ final class PeerService {
         browser = nil
         links.values.forEach { $0.close() }
         links.removeAll()
+        endpoints.removeAll()
         incoming.values.forEach { $0.cancel() }
         incoming.removeAll()
         online.removeAll()
@@ -102,11 +107,14 @@ final class PeerService {
         start()
     }
 
-    /// Re-advertises when this Mac's name, icon or group changed.
+    /// Re-advertises when this Mac's name, icon or group changed. The record is
+    /// updated in place: cancelling the listener would drop every connection
+    /// the other Macs have open to this one.
     func refreshAdvertisement() {
-        guard isRunning, advertised != txtValues else { return }
-        listener?.cancel()
-        startListener()
+        guard isRunning, let listener, advertised != txtValues else { return }
+        let values = txtValues
+        advertised = values
+        listener.service = NWListener.Service(name: store.deviceID, type: RelayService.type, domain: nil, txtRecord: NWTXTRecord(values))
     }
 
     /// Opens links to new members, drops removed ones.
@@ -341,18 +349,12 @@ final class PeerService {
             )
         }
         let appeared = Set(found.keys).subtracting(discovered.keys)
-        let vanished = Set(discovered.keys).subtracting(found.keys)
         discovered = found
+        for (id, peer) in found { endpoints[id] = peer.endpoint }
 
-        for id in vanished where links[id] != nil {
-            links[id]?.close()
-            links[id] = nil
-            markOffline(id)
-        }
         let members = Set(store.peers.map(\.id))
         for id in appeared where members.contains(id) {
-            Log.network.info("Member reappeared: \(found[id]?.name ?? id, privacy: .public)")
-            ensureLink(id)
+            Log.network.info("Member seen on the network: \(found[id]?.name ?? id, privacy: .public)")
             Task { await self.poll(id) }
         }
     }
@@ -361,12 +363,19 @@ final class PeerService {
 
     private func ensureLink(_ id: String) {
         if let link = links[id], !link.isClosed { return }
-        guard let peer = discovered[id], store.member(id) != nil else { return }
-        let link = PeerLink(peerID: id, endpoint: peer.endpoint, store: store, replay: replay)
+        guard let endpoint = endpoints[id] ?? discovered[id]?.endpoint, store.member(id) != nil else { return }
+        let link = PeerLink(peerID: id, endpoint: endpoint, store: store, replay: replay)
         link.onClose = { [weak self, weak link] in
             guard let self, let link, self.links[id] === link else { return }
             self.links[id] = nil
             self.markOffline(id)
+            // Reconnect at once (the peer may just have restarted its listener)
+            // rather than staying offline until the next heartbeat.
+            Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(400))
+                guard let self, self.isRunning, self.store.member(id) != nil, self.endpoints[id] != nil else { return }
+                await self.poll(id)
+            }
         }
         links[id] = link
         link.open()
@@ -401,7 +410,7 @@ final class PeerService {
 
     private func beat() async {
         for member in store.peers {
-            if discovered[member.id] == nil {
+            if endpoints[member.id] == nil && discovered[member.id] == nil {
                 markOffline(member.id)
                 continue
             }
@@ -419,8 +428,18 @@ final class PeerService {
                 markOffline(id)
             }
         } catch {
+            // The link may look alive while the peer is long gone (it restarted
+            // its listener, the network moved…). Drop it so the next beat
+            // builds a fresh one instead of failing forever.
+            dropLink(id)
             markOffline(id)
         }
+    }
+
+    private func dropLink(_ id: String) {
+        guard let link = links.removeValue(forKey: id) else { return }
+        link.onClose = nil
+        link.close()
     }
 
     private func markOffline(_ id: String) {
