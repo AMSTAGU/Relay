@@ -1,67 +1,169 @@
-# Relay
+<p align="center">
+  <img src=".github/icon.png" width="128" height="128" alt="Relay app icon">
+</p>
 
-Relay est une app de barre des menus pour macOS qui partage **une enceinte ou un casque Bluetooth entre plusieurs Mac** (et un iPhone), même quand l’appareil n’accepte qu’une seule connexion à la fois.
+<h1 align="center">Relay</h1>
 
-Un clic sur l’icône ouvre un menu natif : on choisit le Mac qui doit avoir l’enceinte, ou « Aucun Mac » pour la laisser à l’iPhone. Un clic droit la passe à l’appareil suivant : chaque Mac à tour de rôle, puis l’iPhone (« Aucun Mac »), puis on recommence.
+<p align="center">
+  A macOS menu bar app that passes one Bluetooth speaker between all your Macs — in one click.
+</p>
 
-- macOS 14 ou plus récent, Swift 6, aucune dépendance externe
-- Distribution hors App Store (Developer ID + notarisation), code compatible sandbox
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white" alt="Swift 6">
+  <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No dependencies">
+</p>
 
-## Utilisation
+---
 
-1. Appairez l’enceinte **une fois** avec chaque Mac (Réglages Système › Bluetooth).
-2. Installez et ouvrez Relay sur chaque Mac. L’assistant guide pas à pas : Bluetooth, choix de l’enceinte, nom et icône du Mac, appairage des autres Mac avec un code à 6 chiffres, lancement au démarrage, test.
-3. Ensuite, tout se passe dans la barre des menus.
+## Overview
 
-La fenêtre **Aide et prérequis** vérifie tout en direct (permissions, enceinte appairée, réseau local, Mac joignables, lancement au démarrage). Elle propose une action pour chaque point en échec et permet de copier les logs.
+Many Bluetooth speakers and headphones only accept one connection at a time, with no multipoint. Whichever Mac grabbed the speaker last keeps it, and the others can't connect until you go and disconnect it by hand.
 
-## Compiler
+Relay fixes that. Install it on each of your Macs, pair them once, and the menu bar icon becomes a switch: pick the Mac that should play, and every other Mac lets go of the speaker on its own. Choose **Aucun Mac** (No Mac) and they all step aside so your iPhone can use it.
 
-Ouvrez `Relay.xcodeproj` et lancez le schéma **Relay**, ou :
+No Terminal, no Homebrew, no SSH, no server. The Macs talk to each other directly on your local network.
 
-```sh
-xcodebuild -project Relay.xcodeproj -scheme Relay build
+## Features
+
+**In the menu bar**
+
+- **Left click** opens a plain, native menu: one entry per Mac with its own icon and name, a checkmark on the one that has the speaker, and **Aucun Mac** (No Mac) to free it for the iPhone. Offline Macs are greyed out.
+- **Right click** moves the speaker to the next device: each Mac in turn, then the iPhone, then around again.
+- The icon shows who has the speaker (the icon of that Mac, an iPhone, or a muted speaker). Three dots hop while a switch is running, and a warning sign appears if something went wrong. The menu then says what happened in plain words.
+- Any Mac can send the speaker to any other: from the Mac mini, you can hand it to the MacBook.
+
+**Around it**
+
+- **Setup assistant** — Bluetooth permission, speaker choice, this Mac's name and icon, pairing with your other Macs, launch at login, and a live test.
+- **Aide et prérequis** (Help & requirements) — A live checklist (Bluetooth, speaker paired here, local network, other Macs reachable, launch at login) with a one-click fix for each failing item. It also has troubleshooting guides and a **Copier les logs** (Copy logs) button.
+- **Settings** — Name and icon of this Mac, the Macs in your group with their online status, the speaker, launch at login, and an option to release the speaker when this Mac goes to sleep.
+- Any Bluetooth speaker or headset, any number of Macs.
+- Light and dark mode, and *Reduce Motion* is respected everywhere.
+
+## How it works
+
+### Switching
+
+When you pick a Mac, the Mac you clicked on runs the switch:
+
+1. It tells every other online Mac to **release** the speaker, and releases it itself if it isn't the target.
+2. It waits for their acknowledgements (5 s at most).
+3. It **connects** the target: locally, or by asking the target Mac to do it.
+4. Every Mac broadcasts its state, so all the menus update at once.
+
+Connecting opens the Bluetooth link (three attempts, one second apart), then makes the speaker the default audio output through CoreAudio if macOS didn't do it on its own.
+
+### Lock mode
+
+macOS reconnects known audio devices by itself, which is exactly what keeps a speaker stuck to the wrong Mac. So a Mac that was asked to release the speaker becomes **locked**. It listens for Bluetooth connections, and if the speaker comes back without being asked, it disconnects it immediately. The lock is lifted as soon as that Mac is chosen again.
+
+### Network protocol
+
+Each Mac advertises a Bonjour service (`_speakerswitch._tcp`) carrying its ID, name and icon. Messages are JSON over TCP with a 4-byte length prefix:
+
+```
+[4-byte big-endian length] + {"message": <JSON>, "mac": <HMAC-SHA256>}
 ```
 
-## Tests
+Every command is signed with a group key kept in the Keychain. Commands also carry a timestamp and a nonce, so an old or replayed message is rejected. Macs send each other a heartbeat and reconnect on their own when a peer reappears.
+
+### Pairing
+
+Pairing works like pairing a keyboard: one Mac shows a 6-digit code and the other one types it.
+
+1. The two Macs exchange Curve25519 keys.
+2. The code is confirmed one digit at a time. Each Mac commits to the digit before revealing anything, so a device in the middle would have to guess all six digits blind, and a single wrong guess cancels the code.
+3. The group key, the list of Macs and the speaker are then sent encrypted (ChaChaPoly).
+
+A Mac that joins an existing group gets everything it needs in one go.
+
+## Requirements
+
+- macOS 14 Sonoma or later
+- Xcode 26 or later to build (the app icon uses the Icon Composer `.icon` format)
+- The speaker must be paired **once** with each Mac, in System Settings › Bluetooth. Relay handles the connections after that.
+- All Macs on the same local network
+
+### Permissions
+
+| Permission | Why |
+| --- | --- |
+| Bluetooth | To connect and disconnect the speaker |
+| Local network | To find your other Macs and talk to them |
+| Login items | To start with your session (optional, on by default) |
+
+Relay runs in the App Sandbox with only `device.bluetooth`, `network.client` and `network.server`.
+
+## Installation
+
+1. Download the latest release from [Releases](https://github.com/AMSTAGU/Relay/releases)
+2. Move `Relay.app` to your Applications folder, on **each** Mac
+3. Launch it and follow the setup assistant
+4. On your second Mac, click **Appairer** (Pair) next to the first one and type the code it shows
+
+## Building from source
 
 ```sh
-Scripts/selftest.sh           # signature, anti-rejeu, appairage (bon et mauvais code)
-Scripts/selftest.sh --group   # + deux instances réelles via Bonjour
+git clone https://github.com/AMSTAGU/Relay.git
+cd Relay
+open Relay.xcodeproj
 ```
 
-Le mode `--group` démarre deux instances isolées dans un même processus. Il vérifie la découverte, l’appairage, le heartbeat, la synchronisation du nom et de l’enceinte, un ordre de connexion à distance, le verrouillage et le retrait d’un Mac. Il utilise une fausse adresse d’enceinte : aucun appareil réel n’est touché.
+Select the **Relay** scheme and press <kbd>⌘</kbd> <kbd>R</kbd>. You may need to pick your own development team under **Signing & Capabilities** first.
 
-En Debug, `Relay --snapshots` produit une capture de chaque fenêtre en clair et en sombre dans le dossier temporaire de l’app.
-
-## Publier
+### Tests
 
 ```sh
-xcrun notarytool store-credentials relay-notary --apple-id <apple-id> --team-id 82FKKV622Q   # une seule fois
+Scripts/selftest.sh           # message signing, replay protection, pairing (right and wrong code)
+Scripts/selftest.sh --group   # + two real instances talking over Bonjour
+```
+
+The `--group` run starts two isolated instances in one process. It covers discovery, pairing, heartbeat, name and speaker sync, a remote connect order, the lock and removing a Mac. It uses a fake speaker address, so no real device is touched.
+
+### Release
+
+```sh
+xcrun notarytool store-credentials relay-notary --apple-id <apple-id> --team-id <team-id>   # once
 Scripts/release.sh
 ```
 
-## Architecture
+This archives the app, signs it with Developer ID, notarizes and staples it, and zips it.
 
-| Élément | Rôle |
-|---|---|
-| `Speaker/SpeakerController` | IOBluetooth : appareils appairés, connexion (3 tentatives), déconnexion vérifiée, notifications. CoreAudio (`AudioOutput`) : force la sortie par défaut. |
-| `Network/PeerService` | Bonjour (`_speakerswitch._tcp`), liens TCP vers les membres, requête/réponse, heartbeat, reconnexion. |
-| `Network/Wire` | Messages JSON avec préfixe de longueur, signés HMAC-SHA256, horodatage et nonce contre le rejeu. |
-| `Network/Pairing` | Appairage : échange Curve25519 confirmé chiffre par chiffre avec engagements, clé du groupe transmise chiffrée (ChaChaPoly). |
-| `Coordinator/SwitchCoordinator` | Machine à états de la bascule, mode verrouillé, diffusion d’état, gestion du groupe. |
-| `Core/Store` | Réglages en `Codable` (UserDefaults), secret du groupe dans le Trousseau. |
-| `UI/` | `StatusItemController` (NSMenu natif), onboarding, aide, réglages, design system SwiftUI (langage visuel boardui). |
+## Project structure
 
-### Bascule vers un Mac X
+```
+Relay/
+├── App/
+│   ├── Main.swift                 Entry point (menu bar agent, no Dock icon)
+│   ├── AppDelegate.swift          Wiring, main menu for text editing shortcuts
+│   └── WindowManager.swift        Onboarding, settings, help and pairing windows
+├── Speaker/
+│   ├── SpeakerController.swift    IOBluetooth: paired devices, connect, disconnect, notifications
+│   └── AudioOutput.swift          CoreAudio: find the speaker and make it the default output
+├── Network/
+│   ├── PeerService.swift          Bonjour, links to the other Macs, requests, heartbeat
+│   ├── Wire.swift                 Message format, framing, HMAC signing, replay protection
+│   ├── FramedConnection.swift     Length-prefixed TCP connection
+│   └── Pairing.swift              Code pairing (Curve25519 + per-digit commitments)
+├── Coordinator/
+│   └── SwitchCoordinator.swift    Switch state machine, lock mode, group sync
+├── Core/
+│   ├── Store.swift                Settings (Codable in UserDefaults), group key in the Keychain
+│   └── Permissions.swift          Bluetooth, login item, System Settings shortcuts
+├── UI/
+│   ├── StatusItemController.swift Menu bar icon and native menu
+│   ├── Design/                    Buttons, switch, cards, code field, colours and type
+│   └── Onboarding/ Help/ Settings/ Shared/
+└── AppIcon.icon                   App icon (Icon Composer)
+```
 
-1. Le Mac qui a reçu le clic envoie `release(lock: true)` à tous les autres Mac en ligne, et libère lui-même l’enceinte s’il n’est pas X.
-2. Il attend les accusés de réception (5 s).
-3. Il connecte en local si X est ce Mac, sinon il envoie `connect` à X.
-4. Chaque Mac diffuse son état ; tous les menus se mettent à jour.
+## Privacy
 
-Un Mac qui a reçu `release` est **verrouillé** : si macOS reconnecte l’enceinte de lui-même, Relay la déconnecte aussitôt. Le verrou saute quand ce Mac devient la cible.
+Relay never talks to a server. Everything stays between your Macs on your local network, and every message is authenticated with a key that only your Macs know. No analytics, no telemetry.
 
-### Protocole (pour une future app iOS)
+## Notes
 
-Les échanges se font en TCP, trame par trame : 4 octets de longueur en big-endian, puis `{"message": <JSON en base64>, "mac": <HMAC-SHA256 en base64>}`. Un message contient `id`, `sender`, `timestamp`, `nonce`, `replyTo` et `body`. Les commandes sont `status`, `state`, `release`, `connect`, `result`, `groupUpdate`, `groupSyncRequest`, `removed` et `leave`, plus les messages d’appairage. Rien n’est propre à macOS : un client iOS pourra reprendre le même protocole.
+- The interface is currently in French.
+- A corporate VPN, a firewall or a guest Wi-Fi can keep Macs from seeing each other: they then show as offline. The **Aide et prérequis** window explains how to check.
+- The protocol has nothing Mac-specific, so an iPhone companion app could use it too.
