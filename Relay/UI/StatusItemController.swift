@@ -1,7 +1,10 @@
+import OSLog
 import AppKit
 
-/// The menu bar icon. Left click opens a plain, native NSMenu; right click
-/// (or control-click) brings the speaker to this Mac without opening it.
+/// The menu bar icon. Left click opens a plain, native NSMenu (the menu stays
+/// attached to the status item, so AppKit handles it exactly like a system
+/// menu). Right click or control-click is caught before AppKit sees it and
+/// brings the speaker to this Mac without opening the menu.
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let coordinator: SwitchCoordinator
     private let windows: WindowManager
@@ -11,6 +14,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var animationTimer: Timer?
     private var animationFrame = 0
     private var currentIcon: Icon?
+    private var clickMonitor: Any?
 
     private enum Icon: Equatable {
         case symbol(String)
@@ -28,13 +32,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
 
-        if let button = statusItem.button {
-            button.target = self
-            button.action = #selector(clicked(_:))
-            button.sendAction(on: [.leftMouseDown, .rightMouseUp])
-            button.imagePosition = .imageOnly
-        }
+        statusItem.button?.imagePosition = .imageOnly
         statusItem.behavior = []
+        statusItem.menu = menu
+
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in
+            guard let self, let button = self.statusItem.button, event.window === button.window else { return event }
+            let isSecondary = event.type == .rightMouseDown || event.modifierFlags.contains(.control)
+            guard isSecondary else { return event }
+            self.quickSwitch()
+            return nil
+        }
 
         observeChanges { [weak self] in
             self?.refresh()
@@ -47,23 +55,22 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     // MARK: Clicks
 
-    @objc private func clicked(_ sender: NSStatusBarButton) {
-        guard let event = NSApp.currentEvent else { return }
-        let isRightClick = event.type == .rightMouseUp || event.modifierFlags.contains(.control)
-        if isRightClick {
-            quickSwitch()
-        } else {
-            statusItem.menu = menu
-            sender.performClick(nil)
-            statusItem.menu = nil
-        }
-    }
-
     private func quickSwitch() {
         guard coordinator.store.settings.onboardingCompleted else {
             windows.showOnboarding()
             return
         }
+        // Brief native highlight so the click is felt even when nothing moves.
+        statusItem.button?.highlight(true)
+        Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            statusItem.button?.highlight(false)
+        }
+        guard coordinator.switchingTo == nil else {
+            Log.switching.info("Right click ignored: a switch is already running")
+            return
+        }
+        Log.switching.info("Right click: bringing the speaker here")
         Task { await coordinator.switchTo(.mac(coordinator.selfID)) }
     }
 

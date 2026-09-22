@@ -465,7 +465,7 @@ struct CheckStatusIcon: View {
             case .warning:
                 Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color(.warningForeground))
             case .pending:
-                ProgressView().controlSize(.small)
+                DotsLoader()
             }
         }
         .font(.system(size: 17))

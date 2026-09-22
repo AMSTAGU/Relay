@@ -66,7 +66,7 @@ struct PairingPanel: View {
                 if peers.strangers.isEmpty {
                     SettingsCard {
                         HStack(spacing: 10) {
-                            ProgressView().controlSize(.small)
+                            DotsLoader()
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Recherche des Mac qui ont Relay…")
                                     .font(.rBody)
@@ -139,7 +139,7 @@ private struct JoinFlow: View {
             switch joiner.phase {
             case .connecting:
                 title("Connexion à « \(joiner.host.name) »…")
-                ProgressView().controlSize(.small)
+                DotsLoader()
                 cancelButton
 
             case .waitingForCode, .verifying:
@@ -147,7 +147,7 @@ private struct JoinFlow: View {
                 CodeField(code: $code, isDisabled: joiner.phase == .verifying) { joiner.submit($0) }
                 if joiner.phase == .verifying {
                     HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
+                        DotsLoader()
                         Text("Vérification…").font(.rBody2).foregroundStyle(Color(.textSecondary))
                     }
                 } else {
@@ -222,7 +222,7 @@ struct PairingCodeView: View {
                         CodeDisplay(code: host.code)
                         if host.phase == .verifying {
                             HStack(spacing: 8) {
-                                ProgressView().controlSize(.small)
+                                DotsLoader()
                                 Text("Vérification…").font(.rBody2).foregroundStyle(Color(.textSecondary))
                             }
                         } else {
