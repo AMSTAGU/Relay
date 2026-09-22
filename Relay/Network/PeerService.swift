@@ -1,4 +1,5 @@
 import OSLog
+import AppKit
 import CryptoKit
 import Foundation
 import Network
@@ -53,6 +54,10 @@ final class PeerService {
     @ObservationIgnored private let replay = ReplayGuard()
     @ObservationIgnored private var heartbeat: Task<Void, Never>?
     @ObservationIgnored private var advertised: [String: String] = [:]
+    /// No heartbeat while the screens are off: nobody is looking at the menu,
+    /// and incoming commands are still served by the listener.
+    @ObservationIgnored private var screensAsleep = false
+    @ObservationIgnored private var powerObservers: [NSObjectProtocol] = []
 
     init(store: Store) {
         self.store = store
@@ -67,15 +72,19 @@ final class PeerService {
         startBrowser()
         heartbeat = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(8))
-                await self?.beat()
+                try? await Task.sleep(for: .seconds(20), tolerance: .seconds(5))
+                guard let self, !self.screensAsleep else { continue }
+                await self.beat()
             }
         }
+        observePower()
     }
 
     func stop() {
         isRunning = false
         heartbeat?.cancel()
+        powerObservers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
+        powerObservers.removeAll()
         listener?.cancel()
         browser?.cancel()
         listener = nil
@@ -232,7 +241,7 @@ final class PeerService {
             return
         }
 
-        online.insert(message.sender)
+        setOnline(message.sender)
         Task {
             let body = await self.onRequest?(message) ?? .ack
             self.reply(body, to: message, on: connection)
@@ -363,6 +372,33 @@ final class PeerService {
         link.open()
     }
 
+    private func observePower() {
+        let center = NSWorkspace.shared.notificationCenter
+        let asleep = [NSWorkspace.screensDidSleepNotification, NSWorkspace.willSleepNotification]
+        let awake = [NSWorkspace.screensDidWakeNotification, NSWorkspace.didWakeNotification]
+        for name in asleep {
+            powerObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.screensAsleep = true }
+            })
+        }
+        for name in awake {
+            powerObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, self.screensAsleep else { return }
+                    self.screensAsleep = false
+                    // Catch up right away instead of waiting for the next beat.
+                    Task { await self.beat() }
+                }
+            })
+        }
+    }
+
+    private func setOnline(_ id: String) {
+        // Only touch the observable set when something changes, so a routine
+        // heartbeat does not redraw the menu bar icon.
+        if !online.contains(id) { online.insert(id) }
+    }
+
     private func beat() async {
         for member in store.peers {
             if discovered[member.id] == nil {
@@ -377,7 +413,7 @@ final class PeerService {
         do {
             let body = try await request(.status, to: id, timeout: .seconds(4))
             if case .state(let state) = body {
-                online.insert(id)
+                setOnline(id)
                 onPeerState?(state)
             } else if case .removed = body {
                 markOffline(id)

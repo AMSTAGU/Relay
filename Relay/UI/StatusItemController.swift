@@ -131,6 +131,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated { self?.advanceAnimation() }
             }
+            timer.tolerance = 1.0 / 120
             // Keep animating while the menu is open (event-tracking run loop mode).
             RunLoop.main.add(timer, forMode: .common)
             animationTimer = timer

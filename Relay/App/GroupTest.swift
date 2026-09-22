@@ -63,6 +63,42 @@ enum GroupTest {
         return ok
     }
 
+    /// Pairs two instances, gives them a speaker, then leaves them idle and
+    /// reports the process CPU time and wakeups over `seconds`.
+    static func idle(seconds: Int) async {
+        let a = Instance(profile: "idle-a", name: "Alpha")
+        let b = Instance(profile: "idle-b", name: "Bravo")
+        defer {
+            a.peers.stop(); b.peers.stop()
+            a.store.purge(); b.store.purge()
+        }
+        while b.peers.discovered[a.store.deviceID] == nil { try? await Task.sleep(for: .milliseconds(100)) }
+        let joiner = b.peers.beginPairing(with: b.peers.discovered[a.store.deviceID]!)
+        joiner.onWelcome = { snapshot, key in Task { await b.coordinator.joinGroup(snapshot, key: key) } }
+        joiner.start()
+        while joiner.phase != .waitingForCode || a.peers.activeHost == nil { try? await Task.sleep(for: .milliseconds(100)) }
+        joiner.submit(a.peers.activeHost!.code)
+        a.coordinator.setSpeaker(SpeakerInfo(address: "00-00-00-00-00-01", name: "Fausse enceinte"))
+        while !(a.peers.isOnline(b.store.deviceID) && b.peers.isOnline(a.store.deviceID)) { try? await Task.sleep(for: .milliseconds(200)) }
+        try? await Task.sleep(for: .seconds(3))
+
+        let start = usage()
+        try? await Task.sleep(for: .seconds(seconds))
+        let end = usage()
+        let cpu = (end.cpu - start.cpu) * 1000
+        print(String(format: "IDLE %ds, two paired instances: %.1f ms CPU, %d wakeups", seconds, cpu, end.wakeups - start.wakeups))
+    }
+
+    private static func usage() -> (cpu: Double, wakeups: Int) {
+        var info = rusage_info_current()
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(getpid(), RUSAGE_INFO_CURRENT, $0) }
+        }
+        guard result == 0 else { return (0, 0) }
+        let cpu = Double(info.ri_user_time + info.ri_system_time) / 1_000_000_000
+        return (cpu, Int(info.ri_pkg_idle_wkups + info.ri_interrupt_wkups))
+    }
+
     private final class Instance {
         let store: Store
         let permissions = Permissions()

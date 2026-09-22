@@ -55,9 +55,11 @@ final class SwitchCoordinator {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.willSleep() }
         }
+        // Safety net only: Bluetooth connect/disconnect notifications are the
+        // primary signal. Slow and tolerant so macOS can batch the wakeup.
         poller = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(4))
+                try? await Task.sleep(for: .seconds(30), tolerance: .seconds(10))
                 self?.refreshLocal()
             }
         }

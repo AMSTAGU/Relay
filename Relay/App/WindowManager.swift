@@ -139,6 +139,8 @@ final class WindowManager {
         if let observer = closeObservers.removeValue(forKey: key) {
             NotificationCenter.default.removeObserver(observer)
         }
+        // Tear the SwiftUI content down so its refresh loops stop with the window.
+        windows[key]?.contentViewController = nil
         windows[key] = nil
         if key == "pairing", let id = pairingHostID {
             pairingHostID = nil

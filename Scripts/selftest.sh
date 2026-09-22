@@ -5,6 +5,8 @@
 #   - with --group: two isolated instances over real Bonjour (pairing,
 #     heartbeat, rename/speaker sync, remote connect, lock, removal).
 #     Uses a fake speaker address; no real Bluetooth device is touched.
+#   - with --idle [seconds]: two paired instances left idle; prints CPU time
+#     and wakeups, to keep an eye on background cost.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 BIN=build/selftest
@@ -13,6 +15,11 @@ cat > build/selftest-main.swift <<'SWIFT'
 import Foundation
 @main enum Harness {
     static func main() async {
+        if let index = CommandLine.arguments.firstIndex(of: "--idle") {
+            let seconds = CommandLine.arguments.dropFirst(index + 1).first.flatMap(Int.init) ?? 60
+            await GroupTest.idle(seconds: seconds)
+            exit(0)
+        }
         var ok = await SelfTest.run()
         if CommandLine.arguments.contains("--group") { ok = await GroupTest.run() && ok }
         print(ok ? "ALL PASSED" : "SOME FAILED")

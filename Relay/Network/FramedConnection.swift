@@ -24,7 +24,7 @@ final class FramedConnection {
         if let tcp = parameters.defaultProtocolStack.transportProtocol as? NWProtocolTCP.Options {
             tcp.connectionTimeout = 5
             tcp.enableKeepalive = true
-            tcp.keepaliveIdle = 10
+            tcp.keepaliveIdle = 30
         }
         self.init(NWConnection(to: endpoint, using: parameters))
     }
