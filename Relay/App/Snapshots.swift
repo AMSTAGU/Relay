@@ -30,11 +30,13 @@ enum Snapshots {
                     .environment(app.peers)
                     .environment(app.windows)
                     .environment(\.appActions, AppActions())
-                let hosting = NSHostingView(rootView: root)
-                hosting.frame = NSRect(origin: .zero, size: size)
-                let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+                let hosting = NSHostingView(rootView: WindowManager.layout(root))
+                hosting.sizingOptions = []
+                // Same window as the app (title bar and safe area included).
+                let window = WindowManager.makeWindow(size: size)
                 window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 window.contentView = hosting
+                WindowManager.resize(window, to: size)
                 hosting.layoutSubtreeIfNeeded()
                 RunLoop.main.run(until: Date().addingTimeInterval(0.4))
                 guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { continue }

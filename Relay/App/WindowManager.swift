@@ -79,19 +79,13 @@ final class WindowManager {
             .environment(self)
             .environment(\.appActions, AppActions(app: app))
 
-        let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
-        window.isReleasedWhenClosed = false
-        window.backgroundColor = NSColor(resource: .backgroundFull)
-        window.contentViewController = NSHostingController(rootView: root)
-        window.setContentSize(size)
+        let window = Self.makeWindow(size: size)
+        let controller = NSHostingController(rootView: Self.layout(root))
+        // The views have fixed sizes that already include the title bar area;
+        // don't let the controller add the title bar on top of them.
+        controller.sizingOptions = []
+        window.contentViewController = controller
+        Self.resize(window, to: size)
         window.title = switch key {
         case "onboarding": "Bienvenue dans Relay"
         case "settings": "Réglages de Relay"
@@ -110,6 +104,35 @@ final class WindowManager {
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         return window
+    }
+
+    /// Titled window whose content runs under a transparent title bar.
+    static func makeWindow(size: NSSize) -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
+        window.isReleasedWhenClosed = false
+        window.backgroundColor = NSColor(resource: .backgroundFull)
+        return window
+    }
+
+    /// With a full-size content view the frame *is* the content: size the frame
+    /// itself, otherwise AppKit adds the title bar height on top.
+    static func resize(_ window: NSWindow, to size: NSSize) {
+        window.setFrame(NSRect(origin: window.frame.origin, size: size), display: true)
+    }
+
+    /// Our views measure from the very top of the window (they place their
+    /// headers below the traffic lights themselves), so the title bar's safe
+    /// area must not push them down a second time.
+    static func layout<V: View>(_ view: V) -> some View {
+        view.ignoresSafeArea()
     }
 
     private func windowClosed(_ key: String) {
