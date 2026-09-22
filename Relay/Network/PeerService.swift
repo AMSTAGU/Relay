@@ -274,8 +274,10 @@ final class PeerService {
         host.start()
     }
 
-    func dismissHostSession() {
-        if let host = activeHost, host.phase == .showingCode || host.phase == .verifying { host.cancel() }
+    /// The code window was closed: cancel that session if it is still running.
+    func dismissHostSession(_ id: UUID) {
+        guard let host = activeHost, host.id == id else { return }
+        if host.phase == .showingCode || host.phase == .verifying { host.cancel() }
         activeHost = nil
     }
 
