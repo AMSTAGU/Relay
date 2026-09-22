@@ -75,7 +75,6 @@ enum SelfTest {
         for _ in 0..<300 where joiner.phase != .waitingForCode {
             try? await Task.sleep(for: .milliseconds(30))
         }
-        print("  joiner after hello:", joiner.phase, "host:", box.host.map { "\($0.phase)" } ?? "none")
         if let code = box.host?.code {
             let typed = wrongCode ? String(code.prefix(5)) + String((Int(String(code.last!))! + 1) % 10) : code
             joiner.submit(typed)
@@ -86,7 +85,6 @@ enum SelfTest {
             try? await Task.sleep(for: .milliseconds(30))
         }
         try? await Task.sleep(for: .milliseconds(100))
-        print("  joiner end:", joiner.phase, "host:", box.host.map { "\($0.phase)" } ?? "none")
 
         let hostFailed: Bool = {
             if case .failed = box.host?.phase { return true }
