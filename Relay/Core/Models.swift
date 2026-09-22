@@ -12,7 +12,7 @@ struct SpeakerInfo: Codable, Hashable, Sendable {
     var address: String
     var name: String
 
-    static func normalize(_ address: String) -> String {
+    nonisolated static func normalize(_ address: String) -> String {
         let hex = address.lowercased().filter(\.isHexDigit)
         guard hex.count == 12 else { return address.lowercased() }
         var parts: [String] = []

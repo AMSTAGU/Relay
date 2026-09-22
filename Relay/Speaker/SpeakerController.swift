@@ -116,15 +116,12 @@ final class SpeakerController {
         }
     }
 
-    fileprivate func handleConnected(_ device: IOBluetoothDevice) {
-        let address = SpeakerInfo.normalize(device.addressString ?? "")
-        watchDisconnect(device)
+    fileprivate func handleConnected(_ address: String) {
+        if let device = device(address) { watchDisconnect(device) }
         onConnectionChange?(address, true)
     }
 
-    fileprivate func handleDisconnected(_ device: IOBluetoothDevice, notification: IOBluetoothUserNotification) {
-        let address = SpeakerInfo.normalize(device.addressString ?? "")
-        notification.unregister()
+    fileprivate func handleDisconnected(_ address: String) {
         disconnectNotifications[address] = nil
         onConnectionChange?(address, false)
     }
@@ -227,7 +224,10 @@ final class SpeakerController {
 }
 
 /// Target for IOBluetooth's asynchronous `openConnection:` callback.
-private final class ConnectRequest: NSObject {
+/// IOBluetooth may call back on any thread, so this class is not tied to the
+/// main actor; the continuation is resumed exactly once under a lock.
+private nonisolated final class ConnectRequest: NSObject, @unchecked Sendable {
+    private let lock = NSLock()
     private var continuation: CheckedContinuation<IOReturn, Never>?
     private var retainSelf: ConnectRequest?
 
@@ -238,9 +238,12 @@ private final class ConnectRequest: NSObject {
     }
 
     func finish(_ status: IOReturn) {
-        continuation?.resume(returning: status)
+        lock.lock()
+        let pending = continuation
         continuation = nil
         retainSelf = nil
+        lock.unlock()
+        pending?.resume(returning: status)
     }
 
     func armTimeout(seconds: Double) {
@@ -255,15 +258,24 @@ private final class ConnectRequest: NSObject {
     }
 }
 
-/// Receives IOBluetooth notifications (delivered on the main run loop).
-private final class BluetoothObserver: NSObject {
-    weak var owner: SpeakerController?
+/// Receives IOBluetooth notifications. They can arrive on a background thread
+/// (for instance right after registering, for devices already connected), so
+/// only the address crosses over to the main actor.
+private nonisolated final class BluetoothObserver: NSObject, @unchecked Sendable {
+    nonisolated(unsafe) weak var owner: SpeakerController?
 
     @objc func deviceConnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
-        owner?.handleConnected(device)
+        let address = SpeakerInfo.normalize(device.addressString ?? "")
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.owner?.handleConnected(address) }
+        }
     }
 
     @objc func deviceDisconnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
-        owner?.handleDisconnected(device, notification: notification)
+        let address = SpeakerInfo.normalize(device.addressString ?? "")
+        notification.unregister()
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.owner?.handleDisconnected(address) }
+        }
     }
 }

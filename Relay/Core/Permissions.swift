@@ -81,8 +81,8 @@ final class Permissions: NSObject {
 extension Permissions: CBCentralManagerDelegate {
     nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
         let state = central.state
-        MainActor.assumeIsolated {
-            self.centralStateChanged(state)
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { self.centralStateChanged(state) }
         }
     }
 }
