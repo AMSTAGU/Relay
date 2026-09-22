@@ -45,6 +45,10 @@ enum GroupTest {
         a.coordinator.setSpeaker(SpeakerInfo(address: "00-00-00-00-00-01", name: "Fausse enceinte"))
         check(await wait(10) { b.store.speaker?.address == "00-00-00-00-00-01" }, "speaker choice reaches Bravo")
 
+        let order = b.coordinator.orderedMembers.map(\.id)
+        check(order == [b.store.deviceID, a.store.deviceID], "menu order: this Mac first, then the others")
+        check(b.coordinator.nextCycleTarget() == .mac(b.store.deviceID), "right click from « Aucun Mac » goes to the first Mac")
+
         await b.coordinator.switchTo(.mac(a.store.deviceID))
         let error = b.coordinator.lastError ?? ""
         check(error.contains("Alpha 2"), "remote connect order runs on Alpha and its failure is reported: \(error)")

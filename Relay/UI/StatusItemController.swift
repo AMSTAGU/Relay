@@ -4,7 +4,8 @@ import AppKit
 /// The menu bar icon. Left click opens a plain, native NSMenu (the menu stays
 /// attached to the status item, so AppKit handles it exactly like a system
 /// menu). Right click or control-click is caught before AppKit sees it and
-/// brings the speaker to this Mac without opening the menu.
+/// moves the speaker to the next device of the menu (each Mac, then "Aucun
+/// Mac", and around again) without opening the menu.
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let coordinator: SwitchCoordinator
     private let windows: WindowManager
@@ -42,7 +43,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             guard let self, let button = self.statusItem.button, event.window === button.window else { return event }
             let isSecondary = event.type == .rightMouseDown || event.modifierFlags.contains(.control)
             guard isSecondary else { return event }
-            self.quickSwitch()
+            self.cycle()
             return nil
         }
 
@@ -57,7 +58,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     // MARK: Clicks
 
-    private func quickSwitch() {
+    private func cycle() {
         guard coordinator.store.settings.onboardingCompleted else {
             windows.showOnboarding()
             return
@@ -72,8 +73,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             Log.switching.info("Right click ignored: a switch is already running")
             return
         }
-        Log.switching.info("Right click: bringing the speaker here")
-        Task { await coordinator.switchTo(.mac(coordinator.selfID)) }
+        guard let target = coordinator.nextCycleTarget() else {
+            Log.switching.info("Right click: no other device to switch to")
+            NSSound.beep()
+            return
+        }
+        Log.switching.info("Right click: cycling to \(String(describing: target), privacy: .public)")
+        Task { await coordinator.switchTo(target) }
     }
 
     // MARK: Refresh
@@ -211,8 +217,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if let speaker = store.speaker {
             menu.addItem(NSMenuItem.sectionHeader(title: speaker.name))
 
-            let members = [store.identity] + store.peers.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            for member in members {
+            for member in coordinator.orderedMembers {
                 menu.addItem(macItem(member, disabled: switching))
             }
 

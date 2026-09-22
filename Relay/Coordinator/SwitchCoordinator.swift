@@ -115,6 +115,26 @@ final class SwitchCoordinator {
         return peers.isOnline(id) && peerStates[id]?.activity == .connecting
     }
 
+    /// Macs in the order the menu shows them: this Mac first, then the others by name.
+    var orderedMembers: [DeviceIdentity] {
+        [store.identity] + store.peers.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// Right click cycles through every Mac of the menu, then "Aucun Mac", and
+    /// back. Offline Macs are skipped. nil when there is nowhere else to go.
+    func nextCycleTarget() -> SwitchTarget? {
+        guard store.speaker != nil else { return nil }
+        let cycle = orderedMembers.map { SwitchTarget.mac($0.id) } + [.none]
+        let current: SwitchTarget = holderID.map { .mac($0) } ?? .none
+        let start = cycle.firstIndex(of: current) ?? cycle.count - 1
+        for step in 1..<cycle.count {
+            let candidate = cycle[(start + step) % cycle.count]
+            if case .mac(let id) = candidate, id != selfID, !peers.isOnline(id) { continue }
+            return candidate
+        }
+        return nil
+    }
+
     // MARK: Switching
 
     func switchTo(_ target: SwitchTarget) async {

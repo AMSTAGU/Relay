@@ -421,7 +421,7 @@ private struct TestStep: View {
                 SectionLabel("Au quotidien")
                 SettingsCard {
                     SettingsRow(title: "Clic sur l’icône", description: "Choisissez le Mac qui doit avoir l’enceinte, ou « Aucun Mac » pour l’iPhone.", icon: "cursorarrow.click")
-                    SettingsRow(title: "Clic droit sur l’icône", description: "Ramène l’enceinte sur ce Mac, sans ouvrir le menu.", icon: "cursorarrow.click.2")
+                    SettingsRow(title: "Clic droit sur l’icône", description: "Passe l’enceinte à l’appareil suivant : chaque Mac à tour de rôle, puis l’iPhone, et on recommence.", icon: "cursorarrow.click.2")
                 }
             }
         }

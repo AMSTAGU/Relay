@@ -210,7 +210,7 @@ struct HelpView: View {
             expanded: $expanded,
             icon: "iphone",
             title: "Utiliser l’enceinte avec l’iPhone",
-            text: "Dans le menu de Relay, choisissez « Aucun Mac (libérer pour l’iPhone) » : tous les Mac lâchent l’enceinte et arrêtent de s’y reconnecter. Sur l’iPhone, ouvrez le Centre de contrôle (ou Réglages › Bluetooth) et touchez l’enceinte. Pour la récupérer, choisissez un Mac dans le menu ou faites un clic droit sur l’icône de Relay."
+            text: "Dans le menu de Relay, choisissez « Aucun Mac (libérer pour l’iPhone) » : tous les Mac lâchent l’enceinte et arrêtent de s’y reconnecter. Sur l’iPhone, ouvrez le Centre de contrôle (ou Réglages › Bluetooth) et touchez l’enceinte. Pour la récupérer, choisissez un Mac dans le menu. Astuce : un clic droit sur l’icône fait défiler les appareils (chaque Mac, puis l’iPhone)."
         ) { EmptyView() }
         TroubleRow(
             id: "sticky",

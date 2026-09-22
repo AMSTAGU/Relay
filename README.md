@@ -2,7 +2,7 @@
 
 Relay est une app de barre des menus pour macOS qui partage **une enceinte ou un casque Bluetooth entre plusieurs Mac** (et un iPhone), même quand l’appareil n’accepte qu’une seule connexion à la fois.
 
-Un clic sur l’icône ouvre un menu natif : on choisit le Mac qui doit avoir l’enceinte, ou « Aucun Mac » pour la laisser à l’iPhone. Un clic droit la ramène sur ce Mac.
+Un clic sur l’icône ouvre un menu natif : on choisit le Mac qui doit avoir l’enceinte, ou « Aucun Mac » pour la laisser à l’iPhone. Un clic droit la passe à l’appareil suivant : chaque Mac à tour de rôle, puis l’iPhone (« Aucun Mac »), puis on recommence.
 
 - macOS 14 ou plus récent, Swift 6, aucune dépendance externe
 - Distribution hors App Store (Developer ID + notarisation), code compatible sandbox
