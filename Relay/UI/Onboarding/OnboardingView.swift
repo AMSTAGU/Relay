@@ -181,14 +181,14 @@ private struct WelcomeStep: View {
     }
 }
 
-/// Mac ⇄ speaker ⇄ Mac, with the iPhone underneath.
+/// Mac ⇄ Relay ⇄ Mac, with the iPhone underneath.
 private struct Schema: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 14) {
                 SymbolTile(symbol: DeviceSymbols.resolved("macbook"), size: 64)
                 link
-                SymbolTile(symbol: "hifispeaker.fill", size: 84, tint: Color(.accent500), background: Color(.selectionBackground))
+                AppIconImage(size: 104)
                 link
                 SymbolTile(symbol: DeviceSymbols.resolved("macmini"), size: 64)
             }

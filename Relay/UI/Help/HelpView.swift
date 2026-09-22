@@ -18,7 +18,9 @@ struct HelpView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: 14) {
+                    AppIconImage(size: 60)
+                        .padding(.top, -6)
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Aide et prérequis")
                             .font(.rTitle1)

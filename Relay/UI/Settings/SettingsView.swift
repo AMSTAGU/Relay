@@ -59,10 +59,19 @@ struct SettingsView: View {
 
     private var rail: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Réglages")
-                .font(.rBody2Medium)
-                .foregroundStyle(Color(.textSecondary))
-                .padding(.leading, 8)
+            HStack(spacing: 10) {
+                AppIconImage(size: 40)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Relay")
+                        .font(.rHeadline)
+                        .foregroundStyle(Color(.textPrimary))
+                    Text("Réglages")
+                        .font(.rBody2)
+                        .foregroundStyle(Color(.textSecondary))
+                }
+            }
+            .padding(.leading, 2)
+            .padding(.bottom, 12)
             VStack(spacing: 2) {
                 ForEach(WindowManager.SettingsPage.allCases) { page in
                     RailItem(title: title(page), symbol: symbol(page), selected: windows.settingsPage == page) {
@@ -76,7 +85,7 @@ struct SettingsView: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.top, 52)
+        .padding(.top, 44)
         .padding(.bottom, 12)
         .frame(width: 230)
         .frame(maxHeight: .infinity)

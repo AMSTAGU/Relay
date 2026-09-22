@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Switch
@@ -534,5 +535,22 @@ private struct ToastModifier: ViewModifier {
                 text = nil
             }
         }
+    }
+}
+
+// MARK: - App icon
+
+/// Relay's own icon, exactly as macOS renders it (Dock, Finder).
+/// The rendered image includes the system margin around the icon shape.
+struct AppIconImage: View {
+    var size: CGFloat = 40
+
+    var body: some View {
+        Image(nsImage: NSApp.applicationIconImage)
+            .resizable()
+            .interpolation(.high)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
