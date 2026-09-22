@@ -402,11 +402,11 @@ final class SwitchCoordinator {
         peers.broadcast(.groupUpdate(store.group))
     }
 
-    func removeMember(_ id: String) {
-        let wasOnline = peers.isOnline(id)
+    func removeMember(_ id: String) async {
         let name = identity(of: id).name
-        if wasOnline {
-            Task { _ = try? await peers.request(.removed, to: id, timeout: .seconds(2)) }
+        // Tell it first, while it is still a member we can talk to.
+        if peers.isOnline(id) {
+            _ = try? await peers.request(.removed, to: id, timeout: .seconds(2))
         }
         store.removeMember(id)
         peerStates[id] = nil

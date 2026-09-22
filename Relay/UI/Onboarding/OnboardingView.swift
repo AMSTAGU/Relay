@@ -14,9 +14,13 @@ struct OnboardingView: View {
     @Environment(\.appActions) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var step: Step = .welcome
+    @State private var step: Step
     @State private var speakerLater = false
     @State private var launchAtLogin = true
+
+    init(initialStep: Step = .welcome) {
+        _step = State(initialValue: initialStep)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -157,7 +161,7 @@ struct StepHeader: View {
 private struct WelcomeStep: View {
     var body: some View {
         VStack(spacing: 32) {
-            Spacer(minLength: 12)
+            Spacer(minLength: 0)
             Schema()
             VStack(spacing: 10) {
                 Text("Une enceinte, tous vos appareils")
@@ -170,8 +174,10 @@ private struct WelcomeStep: View {
                     .frame(maxWidth: 440)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.bottom, 28)
     }
 }
 

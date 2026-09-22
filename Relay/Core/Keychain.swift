@@ -7,9 +7,9 @@ import Security
 /// Developer ID app without a provisioning profile.
 enum Keychain {
     private static let service = (Bundle.main.bundleIdentifier ?? "com.Amaury.Relay") + ".group"
-    private static let account = "group-key"
+    static let defaultAccount = "group-key"
 
-    static func loadGroupKey() -> SymmetricKey? {
+    static func loadGroupKey(account: String = defaultAccount) -> SymmetricKey? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -27,7 +27,7 @@ enum Keychain {
     }
 
     @discardableResult
-    static func saveGroupKey(_ key: SymmetricKey) -> Bool {
+    static func saveGroupKey(_ key: SymmetricKey, account: String = defaultAccount) -> Bool {
         let data = key.withUnsafeBytes { Data($0) }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -47,7 +47,7 @@ enum Keychain {
         return status == errSecSuccess
     }
 
-    static func deleteGroupKey() {
+    static func deleteGroupKey(account: String = defaultAccount) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

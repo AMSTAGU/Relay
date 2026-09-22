@@ -8,22 +8,26 @@ final class Store {
     private(set) var settings: AppSettings
     private(set) var groupKey: SymmetricKey
 
-    private static let defaultsKey = "settings.v1"
+    @ObservationIgnored private let defaultsKey: String
+    @ObservationIgnored private let keychainAccount: String
     @ObservationIgnored private let defaults = UserDefaults.standard
 
-    init() {
-        if let data = defaults.data(forKey: Self.defaultsKey),
+    /// `profile` isolates settings and secret (used by the debug harness only).
+    init(profile: String = "") {
+        defaultsKey = profile.isEmpty ? "settings.v1" : "settings.v1.\(profile)"
+        keychainAccount = profile.isEmpty ? Keychain.defaultAccount : "\(Keychain.defaultAccount)-\(profile)"
+        if let data = defaults.data(forKey: defaultsKey),
            let decoded = try? JSONDecoder().decode(AppSettings.self, from: data) {
             settings = decoded
         } else {
             settings = .fresh()
         }
-        if let key = Keychain.loadGroupKey() {
+        if let key = Keychain.loadGroupKey(account: keychainAccount) {
             groupKey = key
         } else {
             // A missing key means the group can no longer talk: start a fresh solo group.
             groupKey = SymmetricKey(size: .bits256)
-            Keychain.saveGroupKey(groupKey)
+            Keychain.saveGroupKey(groupKey, account: keychainAccount)
             settings.group = .solo(settings.identity)
         }
         save()
@@ -122,7 +126,7 @@ final class Store {
     func adoptGroup(_ snapshot: GroupSnapshot, key: SymmetricKey) {
         let previousSpeaker = settings.group.speaker
         groupKey = key
-        Keychain.saveGroupKey(key)
+        Keychain.saveGroupKey(key, account: keychainAccount)
         update { s in
             var adopted = snapshot
             if !adopted.members.contains(where: { $0.id == s.deviceID }) {
@@ -140,7 +144,7 @@ final class Store {
     func leaveGroup() {
         let speaker = settings.group.speaker
         groupKey = SymmetricKey(size: .bits256)
-        Keychain.saveGroupKey(groupKey)
+        Keychain.saveGroupKey(groupKey, account: keychainAccount)
         update { s in
             s.group = .solo(s.identity)
             s.group.speaker = speaker
@@ -149,17 +153,25 @@ final class Store {
     }
 
     func resetAll() {
-        defaults.removeObject(forKey: Self.defaultsKey)
-        Keychain.deleteGroupKey()
+        defaults.removeObject(forKey: defaultsKey)
+        Keychain.deleteGroupKey(account: keychainAccount)
         settings = .fresh()
         groupKey = SymmetricKey(size: .bits256)
-        Keychain.saveGroupKey(groupKey)
+        Keychain.saveGroupKey(groupKey, account: keychainAccount)
         save()
     }
 
+    #if DEBUG
+    /// Removes everything this store wrote (debug harness cleanup).
+    func purge() {
+        defaults.removeObject(forKey: defaultsKey)
+        Keychain.deleteGroupKey(account: keychainAccount)
+    }
+    #endif
+
     private func save() {
         if let data = try? JSONEncoder().encode(settings) {
-            defaults.set(data, forKey: Self.defaultsKey)
+            defaults.set(data, forKey: defaultsKey)
         }
     }
 }

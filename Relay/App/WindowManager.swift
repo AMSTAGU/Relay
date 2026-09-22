@@ -128,6 +128,9 @@ final class WindowManager {
 struct AppActions {
     fileprivate weak var app: AppDelegate?
 
+    init() {}
+    fileprivate init(app: AppDelegate?) { self.app = app }
+
     func completeOnboarding() { app?.completeOnboarding() }
     func resetEverything() async { await app?.resetEverything() }
 }

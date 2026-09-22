@@ -40,7 +40,7 @@ struct PairingPanel: View {
             titleVisibility: .visible
         ) {
             Button("Retirer", role: .destructive) {
-                if let member = pendingRemoval { coordinator.removeMember(member.id) }
+                if let member = pendingRemoval { Task { await coordinator.removeMember(member.id) } }
                 pendingRemoval = nil
             }
             Button("Annuler", role: .cancel) { pendingRemoval = nil }

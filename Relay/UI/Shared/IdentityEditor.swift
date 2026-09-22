@@ -19,7 +19,7 @@ struct IdentityEditor: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 FieldLabel("Icône")
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                     ForEach(symbols, id: \.self) { symbol in
                         SymbolChoice(
                             symbol: symbol,

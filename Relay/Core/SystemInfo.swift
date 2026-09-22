@@ -47,8 +47,8 @@ enum SystemInfo {
 /// The SF Symbols offered for a Mac, filtered to what this macOS actually ships.
 enum DeviceSymbols {
     static let candidates = [
-        "macbook", "laptopcomputer", "macbook.gen2", "macmini", "macstudio",
-        "desktopcomputer", "display", "macpro.gen3", "macpro.gen2", "pc", "server.rack",
+        "macbook", "laptopcomputer", "macmini", "macstudio",
+        "desktopcomputer", "display", "macpro.gen3", "macpro.gen2",
     ]
 
     static let fallback = "desktopcomputer"

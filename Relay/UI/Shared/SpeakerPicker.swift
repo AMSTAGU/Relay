@@ -95,7 +95,7 @@ struct SpeakerPicker: View {
             selected: selected,
             action: { coordinator.setSpeaker(SpeakerInfo(address: device.address, name: device.name)) }
         ) {
-            Image(systemName: device.isAudio ? "hifispeaker" : "wave.3.right")
+            Image(systemName: device.symbol)
                 .font(.system(size: 15))
                 .foregroundStyle(Color(.iconSecondary))
                 .frame(width: 32, height: 32)

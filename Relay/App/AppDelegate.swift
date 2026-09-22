@@ -15,7 +15,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.app.info("Relay \(SystemInfo.appVersion, privacy: .public) starting")
         installMainMenu()
+        #if DEBUG
+        if SelfTest.requested {
+            Task {
+                let ok = await SelfTest.run()
+                print(ok ? "ALL PASSED" : "SOME FAILED")
+                exit(ok ? 0 : 1)
+            }
+            return
+        }
+        #endif
         coordinator.start()
+        #if DEBUG
+        if Snapshots.requested {
+            Snapshots.render(app: self)
+            return
+        }
+        #endif
         statusItem = StatusItemController(coordinator: coordinator, windows: windows)
 
         if store.settings.onboardingCompleted {

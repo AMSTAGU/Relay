@@ -31,7 +31,13 @@ final class SpeakerController {
         let name: String
         let isConnected: Bool
         let isAudio: Bool
+        let isHeadphones: Bool
         var id: String { address }
+
+        var symbol: String {
+            if isHeadphones { return "headphones" }
+            return isAudio ? "hifispeaker" : "wave.3.right"
+        }
     }
 
     /// Called on the main thread when any Bluetooth device connects or disconnects.
@@ -60,7 +66,8 @@ final class SpeakerController {
                     address: SpeakerInfo.normalize(device.addressString ?? ""),
                     name: device.nameOrAddress ?? "Appareil Bluetooth",
                     isConnected: device.isConnected(),
-                    isAudio: Self.isAudio(device)
+                    isAudio: Self.isAudio(device),
+                    isHeadphones: Self.isHeadphones(device)
                 )
             }
             .filter { includeAll || $0.isAudio }
@@ -85,6 +92,14 @@ final class SpeakerController {
         let audioServiceBit: UInt32 = 1 << 21
         return major == BluetoothDeviceClassMajor(kBluetoothDeviceClassMajorAudio)
             || (device.classOfDevice & audioServiceBit) != 0
+    }
+
+    private static func isHeadphones(_ device: IOBluetoothDevice) -> Bool {
+        guard device.deviceClassMajor == BluetoothDeviceClassMajor(kBluetoothDeviceClassMajorAudio) else { return false }
+        let minor = device.deviceClassMinor
+        return [kBluetoothDeviceClassMinorAudioHeadset, kBluetoothDeviceClassMinorAudioHeadphones, kBluetoothDeviceClassMinorAudioHandsFree]
+            .map { BluetoothDeviceClassMinor($0) }
+            .contains(minor)
     }
 
     // MARK: Monitoring
