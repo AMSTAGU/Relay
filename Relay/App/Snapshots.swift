@@ -19,15 +19,6 @@ enum Snapshots {
             pages.append(("settings-\(page.rawValue)", NSSize(width: 820, height: 580), AnyView(SettingsPageSnapshot(page: page))))
         }
         pages.append(("help", NSSize(width: 700, height: 660), AnyView(HelpView())))
-        pages.append(("loader", NSSize(width: 200, height: 80), AnyView(
-            HStack(spacing: 24) {
-                DotsLoader()
-                Button {} label: { HStack(spacing: 8) { DotsLoader(color: .white); Text("Bascule…") } }
-                    .buttonStyle(.rPrimary)
-            }
-            .frame(width: 200, height: 80)
-            .background(Color(.backgroundFull))
-        )))
 
         for (name, size, view) in pages {
             for dark in [false, true] {

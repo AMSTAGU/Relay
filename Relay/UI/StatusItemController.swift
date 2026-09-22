@@ -12,7 +12,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private var menuIsOpen = false
     private var animationTimer: Timer?
-    private var animationFrame = 0
+    private var animationStart = Date()
     private var currentIcon: Icon?
     private var clickMonitor: Any?
 
@@ -22,7 +22,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         case error
     }
 
-    private static let switchingFrames = ["speaker.wave.1", "speaker.wave.2", "speaker.wave.3", "speaker.wave.2"]
+    /// Three dots hopping one after the other while a switch runs.
+    private static let hopPeriod = 1.0
+    private static let hopStagger = 0.14
 
     init(coordinator: SwitchCoordinator, windows: WindowManager) {
         self.coordinator = coordinator
@@ -118,21 +120,49 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         case .error:
             setImage("exclamationmark.triangle")
         case .switching:
-            if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-                setImage("arrow.left.arrow.right")
-            } else {
-                animationFrame = 0
-                setImage(Self.switchingFrames[0])
-                animationTimer = Timer.scheduledTimer(withTimeInterval: 0.28, repeats: true) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.advanceAnimation() }
-                }
+            animationStart = Date()
+            advanceAnimation()
+            let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.advanceAnimation() }
             }
+            // Keep animating while the menu is open (event-tracking run loop mode).
+            RunLoop.main.add(timer, forMode: .common)
+            animationTimer = timer
         }
     }
 
     private func advanceAnimation() {
-        animationFrame = (animationFrame + 1) % Self.switchingFrames.count
-        setImage(Self.switchingFrames[animationFrame])
+        let elapsed = Date().timeIntervalSince(animationStart)
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let waves = (0..<3).map { Self.wave(elapsed - Double($0) * Self.hopStagger) }
+        statusItem.button?.image = Self.dotsImage(waves: waves, hop: !reduceMotion)
+    }
+
+    /// 0 at rest, rises smoothly to 1 and back during the first half of each period.
+    private static func wave(_ time: Double) -> Double {
+        var phase = time.truncatingRemainder(dividingBy: hopPeriod) / hopPeriod
+        if phase < 0 { phase += 1 }
+        return phase < 0.5 ? sin(phase * 2 * .pi) : 0
+    }
+
+    /// Template image, so the dots follow the menu bar's colour like any system icon.
+    /// With Reduce Motion the dots stay put and only pulse.
+    private static func dotsImage(waves: [Double], hop: Bool) -> NSImage {
+        let diameter: CGFloat = 3.6
+        let spacing: CGFloat = 2.6
+        let size = NSSize(width: 3 * diameter + 2 * spacing + 4, height: 16)
+        let image = NSImage(size: size, flipped: false) { _ in
+            for (index, wave) in waves.enumerated() {
+                let x = 2 + CGFloat(index) * (diameter + spacing)
+                let y = 5 + (hop ? CGFloat(wave) * 4.5 : 0)
+                NSColor.black.withAlphaComponent(0.45 + 0.55 * wave).setFill()
+                NSBezierPath(ovalIn: NSRect(x: x, y: y, width: diameter, height: diameter)).fill()
+            }
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Bascule en cours"
+        return image
     }
 
     private func setImage(_ name: String) {

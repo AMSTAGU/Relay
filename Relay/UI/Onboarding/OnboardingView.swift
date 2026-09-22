@@ -401,7 +401,7 @@ private struct TestStep: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    if running { DotsLoader(color: .white) }
+                    if running { ProgressView().controlSize(.small).tint(.white) }
                     Text(running ? "Bascule en cours…" : "Tester la bascule")
                 }
             }
