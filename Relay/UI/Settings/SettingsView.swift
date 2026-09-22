@@ -9,6 +9,10 @@ struct SettingsView: View {
     @State private var toast: String?
     @State private var scrolled = false
 
+    /// The rail header and the page header sit on one line, below the traffic lights.
+    private static let headerTop: CGFloat = 44
+    private static let headerHeight: CGFloat = 40
+
     var body: some View {
         @Bindable var windows = windows
         HStack(spacing: 0) {
@@ -21,8 +25,10 @@ struct SettingsView: View {
                     Spacer()
                     CloseButton { NSApp.keyWindow?.close() }
                 }
+                // Same line as the icon + "Relay" block of the rail.
+                .frame(height: Self.headerHeight)
                 .padding(.horizontal, 32)
-                .padding(.top, 30)
+                .padding(.top, Self.headerTop)
                 .padding(.bottom, 14)
 
                 ScrollView {
@@ -60,7 +66,7 @@ struct SettingsView: View {
     private var rail: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
-                AppIconImage(size: 40)
+                AppIconImage(size: Self.headerHeight)
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Relay")
                         .font(.rHeadline)
@@ -70,6 +76,7 @@ struct SettingsView: View {
                         .foregroundStyle(Color(.textSecondary))
                 }
             }
+            .frame(height: Self.headerHeight)
             .padding(.leading, 2)
             .padding(.bottom, 12)
             VStack(spacing: 2) {
@@ -85,7 +92,7 @@ struct SettingsView: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.top, 44)
+        .padding(.top, Self.headerTop)
         .padding(.bottom, 12)
         .frame(width: 230)
         .frame(maxHeight: .infinity)

@@ -58,7 +58,7 @@ struct HelpView: View {
                 }
             }
             .padding(.horizontal, 32)
-            .padding(.top, 36)
+            .padding(.top, 48)
             .padding(.bottom, 32)
         }
         .frame(width: 700, height: 660)
