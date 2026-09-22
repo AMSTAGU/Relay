@@ -117,6 +117,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func apply(_ icon: Icon) {
         guard icon != currentIcon else { return }
         currentIcon = icon
+        Log.app.info("""
+            Menu bar icon: \(String(describing: icon), privacy: .public)             (holder: \(self.coordinator.holderID.map { self.coordinator.identity(of: $0).name } ?? "none", privacy: .public),             connected here: \(self.coordinator.localConnected), locked: \(self.coordinator.store.isLocked))
+            """)
         animationTimer?.invalidate()
         animationTimer = nil
 
@@ -194,6 +197,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // Cheap, and guarantees the menu tells the truth when it is opened.
+        coordinator.refreshLocal()
         rebuildMenu()
     }
 

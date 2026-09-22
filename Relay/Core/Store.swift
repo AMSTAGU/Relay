@@ -13,7 +13,9 @@ final class Store {
     @ObservationIgnored private let defaults = UserDefaults.standard
 
     /// `profile` isolates settings and secret (used by the debug harness only).
-    init(profile: String = "") {
+    /// RELAY_PROFILE does the same for a debug build run outside the sandbox,
+    /// which would otherwise share the Keychain item with the installed app.
+    init(profile: String = ProcessInfo.processInfo.environment["RELAY_PROFILE"] ?? "") {
         defaultsKey = profile.isEmpty ? "settings.v1" : "settings.v1.\(profile)"
         keychainAccount = profile.isEmpty ? Keychain.defaultAccount : "\(Keychain.defaultAccount)-\(profile)"
         if let data = defaults.data(forKey: defaultsKey),

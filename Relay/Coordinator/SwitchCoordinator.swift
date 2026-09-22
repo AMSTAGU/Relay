@@ -38,6 +38,11 @@ final class SwitchCoordinator {
         speaker.onConnectionChange = { [weak self] address, connected in
             self?.connectionChanged(address, connected)
         }
+        speaker.onAudioDevicesChange = { [weak self] in
+            // The speaker's audio device appearing or going away is the most
+            // reliable sign that it arrived here or left.
+            self?.refreshLocal()
+        }
         peers.onRequest = { [weak self] message in
             await self?.handle(message) ?? .ack
         }
@@ -220,7 +225,7 @@ final class SwitchCoordinator {
     func releaseLocal(lock: Bool) async throws {
         store.setLocked(lock)
         guard let info = store.speaker, permissions.bluetooth == .allowed else { return }
-        guard speaker.isConnected(info.address) else {
+        guard speaker.isConnected(info) else {
             refreshLocal()
             return
         }
@@ -257,7 +262,7 @@ final class SwitchCoordinator {
         } else {
             clearError()
             do {
-                if speaker.isConnected(info.address) {
+                if speaker.isConnected(info) {
                     try await releaseLocal(lock: false)
                     try? await Task.sleep(for: .seconds(1))
                 }
@@ -283,13 +288,18 @@ final class SwitchCoordinator {
     }
 
     func refreshLocal(force: Bool = false) {
+        // Access may have been granted after launch.
+        if !bluetoothStarted { startBluetoothIfAllowed() }
         guard bluetoothStarted, let info = store.speaker else {
             if localConnected { localConnected = false }
             return
         }
-        let connected = speaker.isConnected(info.address)
+        let connected = speaker.isConnected(info)
         let changed = connected != localConnected
-        if changed { localConnected = connected }
+        if changed {
+            localConnected = connected
+            Log.switching.info("Speaker \(connected ? "is" : "is no longer", privacy: .public) connected to this Mac")
+        }
         if connected, store.isLocked, !explicitConnect, localActivity == .idle {
             Log.switching.info("Speaker connected while locked: disconnecting")
             Task { try? await speaker.disconnect(info) }

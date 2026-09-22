@@ -1,4 +1,5 @@
 import OSLog
+import CoreAudio
 import Foundation
 import IOBluetooth
 import Observation
@@ -43,6 +44,10 @@ final class SpeakerController {
     /// Called on the main thread when any Bluetooth device connects or disconnects.
     @ObservationIgnored var onConnectionChange: ((_ address: String, _ connected: Bool) -> Void)?
 
+    /// Called when the list of audio devices changes (main thread).
+    @ObservationIgnored var onAudioDevicesChange: (() -> Void)?
+
+    @ObservationIgnored private var audioDevicesListener: AudioObjectPropertyListenerBlock?
     @ObservationIgnored private let observer = BluetoothObserver()
     @ObservationIgnored private var connectNotification: IOBluetoothUserNotification?
     @ObservationIgnored private var disconnectNotifications: [String: IOBluetoothUserNotification] = [:]
@@ -78,6 +83,12 @@ final class SpeakerController {
         device(address)?.isPaired() ?? false
     }
 
+    /// Is the speaker connected to this Mac? IOBluetooth alone sometimes says
+    /// no while the speaker is playing, so CoreAudio has a say too.
+    func isConnected(_ speaker: SpeakerInfo) -> Bool {
+        isConnected(speaker.address) || AudioOutput.hasDevice(for: speaker)
+    }
+
     func isConnected(_ address: String) -> Bool {
         device(address)?.isConnected() ?? false
     }
@@ -105,6 +116,7 @@ final class SpeakerController {
     // MARK: Monitoring
 
     func startMonitoring(_ address: String?) {
+        watchAudioDevices()
         if connectNotification == nil {
             connectNotification = IOBluetoothDevice.register(
                 forConnectNotifications: observer,
@@ -133,6 +145,23 @@ final class SpeakerController {
             forDisconnectNotification: observer,
             selector: #selector(BluetoothObserver.deviceDisconnected(_:device:))
         )
+    }
+
+    /// Audio devices appearing or disappearing is how we notice a speaker that
+    /// connected without going through Relay, or a missed Bluetooth notification.
+    private func watchAudioDevices() {
+        guard audioDevicesListener == nil else { return }
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.onAudioDevicesChange?() }
+        }
+        if AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, block) == noErr {
+            audioDevicesListener = block
+        }
     }
 
     // MARK: Actions

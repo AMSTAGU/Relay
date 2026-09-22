@@ -35,4 +35,6 @@ SWIFT
 swiftc -swift-version 6 -default-isolation MainActor -D DEBUG -parse-as-library -o "$BIN" \
   $(find Relay/Core Relay/Network Relay/Speaker Relay/Coordinator -name '*.swift') \
   Relay/App/SelfTest.swift Relay/App/GroupTest.swift Relay/App/PlaybackTest.swift build/selftest-main.swift
+# Never share the installed app's Keychain item or settings.
+export RELAY_PROFILE=${RELAY_PROFILE:-harness}
 "$BIN" "$@"

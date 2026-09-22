@@ -44,6 +44,13 @@ enum AudioOutput {
         return devices.first { $0.isBluetooth && $0.name == speaker.name }
     }
 
+    /// True when macOS publishes an audio device for this speaker, which only
+    /// happens while it is connected to this Mac. More dependable than asking
+    /// IOBluetooth, whose state can lag or be missed.
+    static func hasDevice(for speaker: SpeakerInfo) -> Bool {
+        device(forSpeaker: speaker) != nil
+    }
+
     static var defaultOutputID: AudioDeviceID? {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
